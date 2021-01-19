@@ -4,6 +4,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
+import android.widget.Toast;
 
 import com.google.android.gms.common.api.Api;
 import com.google.android.gms.common.api.ApiException;
@@ -17,55 +18,77 @@ public class GeoFenceHelper extends ContextWrapper {
     private static final String TAG = "GeoFenceHelper";
     PendingIntent pendingintent;
     public GeoFenceHelper(Context base) {
-        super(base);
+            super(base);
     }
 
     public GeofencingRequest getGeofencingRequest(Geofence geofence) {
-
-        return new GeofencingRequest.Builder()
-                .addGeofence(geofence)
-                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
-                .build();
+        try {
+            return new GeofencingRequest.Builder()
+                    .addGeofence(geofence)
+                    .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+                    .build();
+        }
+        catch (Exception e) {
+            Toast.makeText(this, "the problem in GeofencingRequest: "+e, Toast.LENGTH_LONG);
+            return null;
+        }
     }
 
     public Geofence getGeofence(String ID, LatLng latLng, float radius, int transitionTypes) {
-
-        return new Geofence.Builder()
-                .setCircularRegion(latLng.latitude,latLng.longitude, radius)
-                .setRequestId(ID)
-                .setTransitionTypes(transitionTypes)
-                .setLoiteringDelay(5000)
-                .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                .build();
+        try {
+            return new Geofence.Builder()
+                    .setCircularRegion(latLng.latitude, latLng.longitude, radius)
+                    .setRequestId(ID)
+                    .setTransitionTypes(transitionTypes)
+                    .setLoiteringDelay(2000)
+                    .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                    .build();
+        }
+        catch (Exception e) {
+            Toast.makeText(this, "the problem in getGeofence: "+e, Toast.LENGTH_LONG);
+            return null;
+        }
     }
 
     public PendingIntent getPendingIntent() {
-        if (pendingintent != null) {
+        try {
+            if (pendingintent != null) {
+                return pendingintent;
+            }
+            Intent intent = new Intent(this, GeoFenceBroadcastReceiver.class);
+            pendingintent = PendingIntent.getBroadcast(this, 2607, intent, PendingIntent.FLAG_UPDATE_CURRENT);
             return pendingintent;
         }
-        Intent intent = new Intent(this, GeoFenceBroadcastReceiver.class);
-        pendingintent = PendingIntent.getBroadcast(this, 2607, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-        return pendingintent;
+        catch (Exception e) {
+            Toast.makeText(this, "the problem in PendingIntent: "+e, Toast.LENGTH_LONG);
+            return null;
+        }
     }
 
     public String getErrorString(Exception e) {
-        if (e instanceof ApiException) {
-            ApiException apiException = (ApiException) e;
-            switch (apiException.getStatusCode()) {
-                case GeofenceStatusCodes
-                        .GEOFENCE_NOT_AVAILABLE:
-                    return "GEOFENCE_NOT_AVAILABLE";
+        try {
+            if (e instanceof ApiException) {
+                ApiException apiException = (ApiException) e;
+                switch (apiException.getStatusCode()) {
+                    case GeofenceStatusCodes
+                            .GEOFENCE_NOT_AVAILABLE:
+                        return "GEOFENCE_NOT_AVAILABLE";
 
-                case GeofenceStatusCodes
-                        .GEOFENCE_TOO_MANY_GEOFENCES:
-                    return "GEOFENCE_TOO_MANY_GEOFENCE";
+                    case GeofenceStatusCodes
+                            .GEOFENCE_TOO_MANY_GEOFENCES:
+                        return "GEOFENCE_TOO_MANY_GEOFENCE";
 
-                case GeofenceStatusCodes
-                        .GEOFENCE_TOO_MANY_PENDING_INTENTS:
-                    return "GEOFENCE_TOO_MANY_PENDING_INTENTS";
+                    case GeofenceStatusCodes
+                            .GEOFENCE_TOO_MANY_PENDING_INTENTS:
+                        return "GEOFENCE_TOO_MANY_PENDING_INTENTS";
+                }
             }
+            return e.getLocalizedMessage();
         }
-        return e.getLocalizedMessage();
+        catch (Exception ex) {
+            Toast.makeText(this, "the problem in getErrorString: "+ex, Toast.LENGTH_LONG);
+            return null;
+        }
     }
 
 

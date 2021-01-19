@@ -9,9 +9,13 @@ import android.Manifest;
 import android.app.PendingIntent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.location.Address;
+import android.location.Geocoder;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import com.google.android.gms.location.Geofence;
@@ -28,6 +32,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 
+import java.io.IOException;
+import java.util.List;
+
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
 
     private static final String TAG = "MapsActivity";
@@ -37,7 +44,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private int BACKGROUND_LOCATION_ACCESS_REQUEST_CODE = 10002;
     private GeoFenceHelper geofencehelper;
 
-    private float GEOFENCE_RADIUS = 500;
+    private float GEOFENCE_RADIUS = 500;                    // meters
     private String GEOFENCE_ID = "I_AM_GOOGLER";
 
     @Override
@@ -68,24 +75,38 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // Add a marker in Sydney and move the camera
         LatLng vadodar = new LatLng(22.311199, 73.181976);
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(vadodar));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(vadodar,15.0f));
 
         enableUserLocation();
         mMap.setOnMapLongClickListener(this);
     }
 
+    public void onMapSearch(View view) {
+        EditText locationSearch = (EditText) findViewById(R.id.editText);
+        String location = locationSearch.getText().toString();
+        List<Address> addressList = null;
+
+        if (location != null || !location.equals("")) {
+            Geocoder geocoder = new Geocoder(this);
+            try {
+                addressList = geocoder.getFromLocationName(location, 1);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            Address address = addressList.get(0);
+            LatLng latLng = new LatLng(address.getLatitude(), address.getLongitude());
+            mMap.addMarker(new MarkerOptions().position(latLng).title("Marker"));
+            mMap.animateCamera(CameraUpdateFactory.newLatLng(latLng));
+        }
+    }
     private void enableUserLocation() {
         // to check if permission is granted..
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             mMap.setMyLocationEnabled(true);
+
         } else {
-            // to ask user for permission.
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
-                // we need to show user that why this permission is required and then ask for the permission.
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
-            } else {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
-            }
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
         }
     }
 
@@ -109,6 +130,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mMap.setMyLocationEnabled(true);
             } else {
                 // we do not have permission.
+                Toast.makeText(this, "Location permission is required for this functionality.", Toast.LENGTH_SHORT).show();
             }
 
         }
@@ -137,75 +159,101 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onMapLongClick(LatLng latLng) {
-        if (Build.VERSION.SDK_INT >= 29) {
-            // we need background permission
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        try {
+            if (Build.VERSION.SDK_INT >= 29) {
+                // we need background permission
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    handleMapLongClick(latLng);
+                } else {
+                    if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+                        // we show a dialog and ask for permission.
+                        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
+                    } else {
+                        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
+                    }
+                }
+            } else {
                 handleMapLongClick(latLng);
             }
-            else {
-                if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
-                    // we show a dialog and ask for permission.
-                    ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
-                }
-                else {
-                    ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
-                }
-            }
         }
-        else {
-            handleMapLongClick(latLng);
+        catch (Exception e) {
+            Toast.makeText(this, "the problem in onMapLongClick: "+e, Toast.LENGTH_LONG);
         }
     }
 
     private void handleMapLongClick(LatLng latLng) {
-        mMap.clear();
-        addMarker(latLng);
-        addCircle(latLng, GEOFENCE_RADIUS);
-        addGeofence(latLng, GEOFENCE_RADIUS);
+        try {
+            mMap.clear();
+            addMarker(latLng);
+            addCircle(latLng, GEOFENCE_RADIUS);
+            addGeofence(latLng, GEOFENCE_RADIUS);
+        }
+        catch (Exception e) {
+            Toast.makeText(this, "the problem in handleMapLongClick: "+e, Toast.LENGTH_LONG);
+
+        }
     }
     private void addGeofence(LatLng latLng, float radius) {
-        Geofence geofence = geofencehelper.getGeofence(GEOFENCE_ID, latLng, radius, Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_DWELL |
-                Geofence.GEOFENCE_TRANSITION_EXIT);
-        GeofencingRequest geofencingRequest = geofencehelper.getGeofencingRequest(geofence);
-        PendingIntent pendingIntent = geofencehelper.getPendingIntent();
+        try {
+            Geofence geofence = geofencehelper.getGeofence(GEOFENCE_ID, latLng, radius, Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_DWELL |
+                    Geofence.GEOFENCE_TRANSITION_EXIT);
+            GeofencingRequest geofencingRequest = geofencehelper.getGeofencingRequest(geofence);
+            PendingIntent pendingIntent = geofencehelper.getPendingIntent();
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
+            }
+            geofencingClient.addGeofences(geofencingRequest, pendingIntent).addOnSuccessListener(new OnSuccessListener<Void>() {
+                @Override
+                public void onSuccess(Void aVoid) {
+                    Log.d(TAG, "onSuccess: Geofence Added...");
+                    Toast.makeText(MapsActivity.this, "Geofence added successfully", Toast.LENGTH_SHORT).show();
+                }
+            }).addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    String errorMessage = geofencehelper.getErrorString(e);
+                    Log.d(TAG, "onFailure: " + errorMessage);
+                    Toast.makeText(MapsActivity.this, "Failure occurred", Toast.LENGTH_SHORT).show();
+
+                }
+            });
+            geofencingClient.addGeofences(geofencingRequest, pendingIntent);
         }
-        geofencingClient.addGeofences(geofencingRequest, pendingIntent).addOnSuccessListener(new OnSuccessListener<Void>() {
-            @Override
-            public void onSuccess(Void aVoid) {
-                Log.d(TAG, "onSuccess: Geofence Added...");
-            }
-        }).addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                String errorMessage = geofencehelper.getErrorString(e);
-                Log.d(TAG, "onFailure: " + errorMessage);
-            }
-        });
-        geofencingClient.addGeofences(geofencingRequest, pendingIntent);
-
+        catch (Exception e) {
+            Toast.makeText(this, "the problem in addGeofence: "+e, Toast.LENGTH_LONG);
+        }
     }
 
     private void addMarker(LatLng latlng) {
-        MarkerOptions markeroptions = new MarkerOptions().position(latlng);
-        mMap.addMarker(markeroptions);
+        try {
+            MarkerOptions markeroptions = new MarkerOptions().position(latlng);
+            mMap.addMarker(markeroptions);
+        }
+        catch (Exception e) {
+            Toast.makeText(this, "the problem in addMarker: "+e, Toast.LENGTH_LONG);
+        }
     }
 
     private void addCircle(LatLng latlng, float radius) {
-        CircleOptions circleoptions = new CircleOptions();
-        circleoptions.center(latlng);
-        circleoptions.radius(radius);
-        circleoptions.strokeColor(Color.argb(255, 255, 0, 0));
-        circleoptions.fillColor(Color.argb(64, 255,0,0));
-        mMap.addCircle(circleoptions);
+        try {
+            CircleOptions circleoptions = new CircleOptions();
+            circleoptions.center(latlng);
+            circleoptions.radius(radius);
+            circleoptions.strokeColor(Color.argb(255, 255, 0, 0));
+            circleoptions.fillColor(Color.argb(64, 255, 0, 0));
+            mMap.addCircle(circleoptions);
+        }
+        catch (Exception e) {
+            Toast.makeText(this, "the problem in addCircle: "+e, Toast.LENGTH_LONG);
+
+        }
     }
 }
