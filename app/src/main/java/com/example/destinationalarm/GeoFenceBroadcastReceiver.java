@@ -22,6 +22,7 @@ public class GeoFenceBroadcastReceiver extends BroadcastReceiver {
         // an Intent broadcast.
         try {
             Toast.makeText(context, "Geofence triggered...", Toast.LENGTH_SHORT).show();
+            Notity_Alert_Helper notity_alert_helper = new Notity_Alert_Helper(context);
 
             GeofencingEvent geofencingEvent = GeofencingEvent.fromIntent(intent);
 
@@ -41,12 +42,17 @@ public class GeoFenceBroadcastReceiver extends BroadcastReceiver {
             switch (transitionType) {
                 case Geofence.GEOFENCE_TRANSITION_ENTER:
                     Toast.makeText(context, "GEOFENCE_TRANSITION_ENTER", Toast.LENGTH_SHORT).show();
+                    notity_alert_helper.sendHighPriorityNotification("GEOFENCE_TRANSITION_ENTER","", MapsActivity.class);
                     break;
                 case Geofence.GEOFENCE_TRANSITION_DWELL:
                     Toast.makeText(context, "GEOFENCE_TRANSITION_DWELL", Toast.LENGTH_SHORT).show();
+                    notity_alert_helper.sendHighPriorityNotification("GEOFENCE_TRANSITION_DWELL","", MapsActivity.class);
+
                     break;
                 case Geofence.GEOFENCE_TRANSITION_EXIT:
                     Toast.makeText(context, "GEOFENCE_TRANSITION_EXIT", Toast.LENGTH_SHORT).show();
+                    notity_alert_helper.sendHighPriorityNotification("GEOFENCE_TRANSITION_EXIT","", MapsActivity.class);
+
                     break;
             }
 
@@ -54,7 +60,6 @@ public class GeoFenceBroadcastReceiver extends BroadcastReceiver {
         }
         catch (Exception e) {
             Toast.makeText(context, "the problem in onReceive: "+e, Toast.LENGTH_LONG);
-
         }
 
     }
