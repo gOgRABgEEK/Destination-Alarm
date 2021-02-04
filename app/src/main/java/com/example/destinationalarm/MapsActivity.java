@@ -45,7 +45,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GeoFenceHelper geofencehelper;
 
     private float GEOFENCE_RADIUS = 500;                    // meters
-    private String GEOFENCE_ID = "I_AM_GOOGLER";
+    private String GEOFENCE_ID = "FENCE_1";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
